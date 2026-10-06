@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSIT_EQUIPMENT TRACKER</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --text:#1a1d21; --sub:#6b7280;
+  --accent:#2563eb; --accent2:#16a34a; --border:#9ca3af; --danger:#dc2626;
+  --cell:#ffffff; --tp:#d97706; --idle:#f3f4f6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+header{position:sticky;top:0;padding:14px 16px 12px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;margin:0 0 2px}
+.sub{font-size:12px;color:var(--sub)}
+main{max-width:1200px;margin:0 auto;padding:12px 16px 40px}
+.section-title{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);margin:18px 0 8px}
+.login-wrap{max-width:420px;margin:60px auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.login-wrap select,.login-wrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px}
+.map-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--card)}
+.map-grid{display:grid;grid-template-columns:repeat(21,minmax(26px,1fr));gap:2px;width:100%}
+.extra-grid{display:grid;grid-template-columns:repeat(21,minmax(26px,1fr));grid-template-rows:repeat(3,minmax(38px,auto));gap:2px;width:100%;margin-top:6px}
+.letter-label{font-size:9px;color:var(--sub);text-align:center;font-weight:600;padding:2px 0}
+.block-cell{border:1px solid var(--border);background:var(--cell);color:var(--sub);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;padding:2px 1px;min-height:40px;text-align:center;overflow:hidden;cursor:pointer}
+.block-cell.occ{background:var(--accent);color:#fff;font-weight:600;border-color:#1d4ed8}
+.block-cell.idle{background:var(--idle);color:var(--sub)}
+.block-cell.tpsp{background:var(--tp);color:#fff}
+.bc-code{font-size:8px;opacity:.9}
+.bc-rtg{font-size:10.5px;font-weight:700;margin-top:1px;line-height:1.05;word-break:break-word}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:var(--sub)}
+.legend-item{display:flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:4px;display:inline-block}
+.dot-rtg{background:var(--accent)} .dot-idle{background:var(--idle);border:1px solid var(--border)} .dot-tpsp{background:var(--tp)}
+.btn{border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-tp{background:var(--tp);color:#fff}
+.btn-ghost{background:transparent;color:var(--sub);border:1px solid var(--border)}
+.add-row{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.add-row input,.add-row select{padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px}
+.add-row input{flex:1;min-width:120px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 4px;border-bottom:1px solid var(--border);text-align:left}
+th{color:var(--sub);font-size:11px;text-transform:uppercase}
+.feed{display:flex;flex-direction:column;gap:6px}
+.feed-item{font-size:13px;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border)}
+.feed-time{color:var(--sub);font-size:11px;margin-left:6px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--accent2);color:#fff;padding:12px 18px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;z-index:20;max-width:92%;text-align:center}
+.toast.show{opacity:1}
+.empty{color:var(--sub);font-size:13px;padding:10px 2px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:30}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px}
+.modal select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-top:8px}
+.hidden{display:none !important}
+.whoami-row{display:flex;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>SSIT_EQUIPMENT TRACKER</h1><div class="sub" id="headerSub">Đang tải…</div></div>
+  <div class="whoami-row hidden" id="whoamiRow">
+    <span class="sub" id="whoami"></span>
+    <button class="btn btn-ghost" id="switchAccountBtn">Đổi tài khoản</button>
+  </div>
+</header>
+
+<div id="loginScreen" class="login-wrap hidden">
+  <h2 style="margin:0 0 4px;font-size:16px">Chọn tài khoản dispatcher</h2>
+  <div class="sub" style="margin-bottom:14px">Không cần đăng nhập — chỉ cần chọn hoặc nhập tên của bạn.</div>
+  <select id="accountSelect"></select>
+  <button class="btn btn-primary" id="confirmAccountBtn" style="width:100%;margin-bottom:14px">Vào ứng dụng</button>
+  <div class="sub" style="margin:10px 0 6px">Chưa có tên bạn trong danh sách?</div>
+  <div class="row">
+    <input id="newAccountName" placeholder="Tên của bạn (vd: Chúc Du)" style="flex:1">
+    <button class="btn btn-ghost" id="addAccountBtn">Thêm & chọn</button>
+  </div>
+</div>
+
+<main id="appMain" class="hidden">
+  <div class="section-title">Sơ đồ bãi container yard</div>
+  <div class="map-wrap">
+    <div class="map-grid" id="mapGrid"></div>
+    <div class="extra-grid" id="extraGrid"></div>
+  </div>
+  <div class="legend">
+    <span class="legend-item"><span class="dot dot-rtg"></span>RTG đang đứng</span>
+    <span class="legend-item"><span class="dot dot-idle"></span>Chưa có thiết bị (bấm để gán)</span>
+    <span class="legend-item"><span class="dot dot-tpsp"></span>Có Top Pick / Side Pick (bấm để đổi)</span>
+  </div>
+
+  <div class="section-title">Thêm RTG mới</div>
+  <div class="add-row">
+    <input id="newRtgName" placeholder="Tên RTG mới (vd: 23)">
+    <select id="newRtgLetter"></select>
+    <button class="btn btn-primary" id="addRtgBtn">+ Thêm RTG</button>
+  </div>
+
+  <div class="section-title">Vị trí thiết bị Top Pick / Side Pick</div>
+  <div class="add-row">
+    <select id="newTpType"><option value="TP">Top Pick</option><option value="SP">Side Pick</option></select>
+    <input id="newTpNum" placeholder="Số (vd: 07)">
+    <button class="btn btn-tp" id="addTpBtn">+ Thêm thiết bị</button>
+  </div>
+  <table><thead><tr><th>Thiết bị</th><th>Vị trí</th></tr></thead><tbody id="tpTableBody"></tbody></table>
+
+  <div class="section-title">Nhật ký chuyển block</div>
+  <div class="feed" id="feed"><div class="empty">Chưa có thay đổi nào.</div></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="assignModalBg">
+  <div class="modal">
+    <h3 id="assignModalTitle">Gán thiết bị vào block</h3>
+    <select id="assignDeviceSelect"></select>
+    <div class="row">
+      <button class="btn btn-tp" id="confirmAssignBtn">Xác nhận</button>
+      <button class="btn btn-ghost" id="closeAssignModalBtn">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="confirmModalBg">
+  <div class="modal">
+    <h3>Xác nhận</h3>
+    <div id="confirmModalMsg" style="font-size:14px;margin-bottom:14px"></div>
+    <div class="row">
+      <button class="btn btn-primary" id="confirmModalYes">Xác nhận</button>
+      <button class="btn btn-ghost" id="confirmModalNo">Huỷ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   1) FIREBASE CONFIG — thay bằng config thật của project Firebase bạn
+      tạo (xem README.md). Đây là thông tin công khai, không phải mật
+      khẩu — an toàn khi để trong code frontend.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDgNq8tGZ0z_H6uNfwoDNNDG4XPlHa9Ui8",
+  authDomain: "ssit-equipment-tracker.firebaseapp.com",
+  projectId: "ssit-equipment-tracker",
+  storageBucket: "ssit-equipment-tracker.firebasestorage.app",
+  messagingSenderId: "889885521751",
+  appId: "1:889885521751:web:9ff50ff73d721f4522b012",
+  measurementId: "G-1TP90BFH2E"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const LETTERS=['A','B','C','D','E','F','G','H','J','K','L','M','N','P','R','S','T','U','V','W','Y'];
+const RTG_LETTERS=['C','D','E','F','G','H','J','L','M','N','P','R','S','T','U','V'];
+const EXTRA_TP_BLOCKS=['5S','7S','SA','AS'];
+const SEED_RTG=[
+  ['16','C'],['22','D'],['2','E'],['6','F'],['12','G'],['10','H'],['18','J'],['4','L'],
+  ['3','M'],['1','N'],['7','P'],['9','R'],['8','S'],['5','T'],['11','U'],['14','V']
+];
+function pad2(n){ n=String(n); return n.length<2?('0'+n):n; }
+
+let myId=null, myName=null;
+let equipAll={}, events=[], accounts=[];
+let seenEventIds=new Set(JSON.parse(localStorage.getItem('rtg_seen_events')||'[]'));
+let activeBlockCode=null;
+
+const $=function(s){ return document.querySelector(s); };
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },5000); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}); }catch(e){return '';} }
+function displayName(r){ return r.type==='RTG' ? ('RTG-'+r.name) : r.name; }
+function sibling(block){ if(!block) return null; const d=block[0], L=block.slice(1); return (d==='1'?'2':'1')+L; }
+function equipsAtBlock(code, type){ return Object.keys(equipAll).map(function(k){return [k,equipAll[k]];}).filter(function(e){ return e[1].block===code && (!type || e[1].type===type); }); }
+
+function customConfirm(msg){
+  return new Promise(function(resolve){
+    $('#confirmModalMsg').textContent=msg;
+    $('#confirmModalBg').classList.add('open');
+    const yes=$('#confirmModalYes'), no=$('#confirmModalNo');
+    function cleanup(r){ $('#confirmModalBg').classList.remove('open'); yes.removeEventListener('click',onYes); no.removeEventListener('click',onNo); resolve(r); }
+    function onYes(){ cleanup(true); } function onNo(){ cleanup(false); }
+    yes.addEventListener('click',onYes); no.addEventListener('click',onNo);
+  });
+}
+
+/* ---------- account gate ---------- */
+function accountIdFor(name){ return 'acc_'+name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function renderAccountSelect(){
+  const sel=$('#accountSelect');
+  if(accounts.length===0){ sel.innerHTML='<option value="">(chưa có tài khoản nào — thêm ở dưới)</option>'; }
+  else{ sel.innerHTML=accounts.map(function(a){ return '<option value="'+a.id+'">'+escapeHtml(a.name)+'</option>'; }).join(''); }
+}
+function selectAccount(id,name){
+  myId=id; myName=name;
+  localStorage.setItem('rtg_my_account', JSON.stringify({id:id,name:name}));
+  $('#loginScreen').classList.add('hidden');
+  $('#appMain').classList.remove('hidden');
+  $('#whoamiRow').classList.remove('hidden');
+  $('#whoami').textContent='Dispatcher: '+name;
+  $('#headerSub').textContent='';
+}
+function addAccountClick(){
+  const name=$('#newAccountName').value.trim();
+  if(!name) return;
+  const id=accountIdFor(name);
+  db.collection('accounts').doc(id).set({name:name, addedAt:Date.now()})
+    .then(function(){ selectAccount(id,name); })
+    .catch(function(err){ toast('Lỗi: '+err.message); });
+}
+function switchAccount(){
+  localStorage.removeItem('rtg_my_account');
+  myId=null; myName=null;
+  $('#appMain').classList.add('hidden');
+  $('#whoamiRow').classList.add('hidden');
+  $('#loginScreen').classList.remove('hidden');
+}
+
+/* ---------- rendering ---------- */
+function renderMap(){
+  const grid=$('#mapGrid');
+  let html='';
+  LETTERS.forEach(function(L){ html+='<div class="letter-label">'+L+'</div>'; });
+  ['1','2'].forEach(function(n){
+    LETTERS.forEach(function(L){
+      const code=n+L;
+      if(RTG_LETTERS.indexOf(L)!==-1){
+        const found=equipsAtBlock(code,'RTG')[0];
+        if(found){ html+='<div class="block-cell occ" data-letter="'+L+'" title="'+code+'"><div class="bc-code">'+code+'</div><div class="bc-rtg">'+escapeHtml(displayName(found[1]))+'</div></div>'; }
+        else{ html+='<div class="block-cell idle" data-letter="'+L+'" title="'+code+'"><div class="bc-code">'+code+'</div></div>'; }
+      }else{
+        const list=equipsAtBlock(code);
+        const cls=list.length?'tpsp':'idle';
+        const label=list.length? list.map(function(x){return escapeHtml(displayName(x[1]));}).join(', '):'';
+        html+='<div class="block-cell '+cls+'" data-assign-block="'+code+'" title="'+code+'"><div class="bc-code">'+code+'</div><div class="bc-rtg">'+label+'</div></div>';
+      }
+    });
+  });
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-letter]').forEach(function(cell){ cell.addEventListener('click',function(){ handleRtgLetterClick(cell.getAttribute('data-letter')); }); });
+  grid.querySelectorAll('[data-assign-block]').forEach(function(cell){ cell.addEventListener('click',function(){ openAssignModal(cell.getAttribute('data-assign-block')); }); });
+}
+
+function renderExtraZones(){
+  const g=$('#extraGrid');
+  const positions=[
+    {code:'5S', col:'1 / span 2', row:'1 / span 2'},
+    {code:'7S', col:'3 / span 3', row:'1 / span 1'},
+    {code:'SA', col:'3 / span 3', row:'2 / span 1'},
+    {code:'AS', col:'1 / span 6', row:'3 / span 1'}
+  ];
+  g.innerHTML=positions.map(function(p){
+    const list=equipsAtBlock(p.code);
+    const cls=list.length?'tpsp':'idle';
+    const label=list.length? list.map(function(x){return escapeHtml(displayName(x[1]));}).join(', '):'';
+    return '<div class="block-cell '+cls+'" data-assign-block="'+p.code+'" style="grid-column:'+p.col+';grid-row:'+p.row+'" title="'+p.code+'"><div class="bc-code">'+p.code+'</div><div class="bc-rtg">'+label+'</div></div>';
+  }).join('');
+  g.querySelectorAll('[data-assign-block]').forEach(function(cell){ cell.addEventListener('click',function(){ openAssignModal(cell.getAttribute('data-assign-block')); }); });
+}
+
+function handleRtgLetterClick(letter){
+  const f1=equipsAtBlock('1'+letter,'RTG')[0], f2=equipsAtBlock('2'+letter,'RTG')[0];
+  const found=f1||f2;
+  if(found){ confirmAndMove(found[0], sibling(found[1].block)); }
+  else{ openRtgAssignModal(letter); }
+}
+
+function renderTpTable(){
+  const body=$('#tpTableBody');
+  const ids=Object.keys(equipAll).filter(function(id){ return equipAll[id].type!=='RTG'; });
+  if(ids.length===0){ body.innerHTML='<tr><td colspan="2" class="empty">Chưa có thiết bị TP/SP nào.</td></tr>'; return; }
+  const assigned=ids.filter(function(id){ return equipAll[id].block; }).sort(function(a,b){ return String(equipAll[a].block).localeCompare(String(equipAll[b].block)); });
+  const unassigned=ids.filter(function(id){ return !equipAll[id].block; });
+  let rows='';
+  assigned.forEach(function(id){ const r=equipAll[id]; rows+='<tr><td>'+escapeHtml(displayName(r))+'</td><td>'+escapeHtml(r.block)+'</td></tr>'; });
+  if(unassigned.length){ rows+='<tr><td style="color:var(--sub)">Chưa gán lệnh</td><td style="color:var(--sub)">'+unassigned.map(function(id){return escapeHtml(displayName(equipAll[id]));}).join(', ')+'</td></tr>'; }
+  body.innerHTML=rows;
+}
+
+function renderFeed(){
+  const feed=$('#feed');
+  if(events.length===0){ feed.innerHTML='<div class="empty">Chưa có thay đổi nào.</div>'; return; }
+  feed.innerHTML=events.map(function(e){
+    return '<div class="feed-item"><b>'+escapeHtml(e.label)+'</b>: '+escapeHtml(e.fromBlock)+' → '+escapeHtml(e.toBlock)+' ('+escapeHtml(e.dispatcher)+')<span class="feed-time">'+fmtTime(e.ts)+'</span></div>';
+  }).join('');
+}
+
+/* ---------- modals & actions ---------- */
+function openAssignModal(code){
+  activeBlockCode=code;
+  $('#assignModalBg').dataset.mode='tpsp';
+  $('#assignModalTitle').textContent='Gán thiết bị vào block '+code;
+  const devices=Object.keys(equipAll).filter(function(id){ return equipAll[id].type!=='RTG'; });
+  if(devices.length===0){ $('#assignDeviceSelect').innerHTML='<option value="">(chưa có thiết bị TP/SP nào)</option>'; }
+  else{ $('#assignDeviceSelect').innerHTML=devices.map(function(id){ const r=equipAll[id]; return '<option value="'+id+'">'+escapeHtml(displayName(r))+(r.block?' (hiện ở '+escapeHtml(r.block)+')':'')+'</option>'; }).join(''); }
+  $('#assignModalBg').classList.add('open');
+}
+function openRtgAssignModal(letter){
+  activeBlockCode='1'+letter;
+  $('#assignModalBg').dataset.mode='rtg';
+  $('#assignModalTitle').textContent='Gán RTG vào block '+letter+' (block 1)';
+  const unassigned=Object.keys(equipAll).filter(function(id){ return equipAll[id].type==='RTG' && !equipAll[id].block; });
+  if(unassigned.length===0){ $('#assignDeviceSelect').innerHTML='<option value="">(không có RTG nào đang trống)</option>'; }
+  else{ $('#assignDeviceSelect').innerHTML=unassigned.map(function(id){ return '<option value="'+id+'">'+escapeHtml(displayName(equipAll[id]))+'</option>'; }).join(''); }
+  $('#assignModalBg').classList.add('open');
+}
+function closeAssignModal(){ $('#assignModalBg').classList.remove('open'); activeBlockCode=null; }
+
+async function confirmAndMove(id, newBlock){
+  if(!id||!newBlock) return;
+  const r=equipAll[id]; const from=r.block||'Chưa gán';
+  if(from===newBlock) return;
+  const ok=await customConfirm('Xác nhận chuyển '+displayName(r)+' từ '+from+' sang '+newBlock+'?');
+  if(!ok) return;
+  doMove(id,newBlock);
+}
+function doMove(id,newBlock){
+  const r=equipAll[id]||{};
+  const fromBlock=r.block||'Chưa gán';
+  db.collection('equipment').doc(id).set({ name:r.name, type:r.type, letter:r.letter||'', block:newBlock, updatedBy:myName, updatedAt:Date.now() }, {merge:true})
+    .then(function(){
+      return db.collection('events').add({ label:displayName(r), fromBlock:fromBlock, toBlock:newBlock, dispatcher:myName, ts:Date.now() });
+    })
+    .catch(function(err){ toast('Lỗi: '+err.message); });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  $('#confirmAssignBtn').addEventListener('click', async function(){
+    const deviceId=$('#assignDeviceSelect').value;
+    const code=activeBlockCode;
+    closeAssignModal();
+    if(!deviceId) return;
+    const r=equipAll[deviceId];
+    const ok=await customConfirm('Xác nhận gán '+displayName(r)+' vào block '+code+'?');
+    if(!ok) return;
+    doMove(deviceId, code);
+  });
+  $('#closeAssignModalBtn').addEventListener('click', closeAssignModal);
+  $('#assignModalBg').addEventListener('click', function(e){ if(e.target.id==='assignModalBg') closeAssignModal(); });
+  $('#confirmModalBg').addEventListener('click', function(e){ if(e.target.id==='confirmModalBg') $('#confirmModalNo').click(); });
+
+  $('#addRtgBtn').addEventListener('click', function(){
+    const name=$('#newRtgName').value.trim(); const letter=$('#newRtgLetter').value;
+    if(!name||!letter) return;
+    const id='rtg_'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    db.collection('equipment').doc(id).set({ name:name, type:'RTG', letter:letter, block:'1'+letter, updatedBy:myName, updatedAt:Date.now() })
+      .then(function(){ $('#newRtgName').value=''; toast('Đã thêm RTG-'+name+' vào block 1'+letter); })
+      .catch(function(err){ toast('Lỗi: '+err.message); });
+  });
+  $('#addTpBtn').addEventListener('click', function(){
+    const type=$('#newTpType').value; const num=$('#newTpNum').value.trim();
+    if(!num) return;
+    const name=type+pad2(num);
+    const id=type.toLowerCase()+'_'+name.toLowerCase();
+    db.collection('equipment').doc(id).set({ name:name, type:type, letter:'', block:'', updatedBy:myName, updatedAt:Date.now() })
+      .then(function(){ $('#newTpNum').value=''; })
+      .catch(function(err){ toast('Lỗi: '+err.message); });
+  });
+  $('#confirmAccountBtn').addEventListener('click', function(){
+    const id=$('#accountSelect').value;
+    if(!id){ toast('Chưa có tài khoản — hãy thêm tên bạn ở dưới.'); return; }
+    const acc=accounts.filter(function(a){return a.id===id;})[0];
+    selectAccount(id, acc.name);
+  });
+  $('#addAccountBtn').addEventListener('click', addAccountClick);
+  $('#newAccountName').addEventListener('keydown', function(e){ if(e.key==='Enter') addAccountClick(); });
+  $('#switchAccountBtn').addEventListener('click', switchAccount);
+
+  init();
+});
+
+/* ---------- realtime listeners (true push via Firestore, no polling) ---------- */
+function markSeen(id){ seenEventIds.add(id); try{ localStorage.setItem('rtg_seen_events', JSON.stringify(Array.from(seenEventIds).slice(-200))); }catch(e){} }
+let firstEventsLoad=true;
+
+async function seedIfEmpty(){
+  const snap=await db.collection('equipment').limit(1).get();
+  if(!snap.empty) return;
+  const batch=db.batch();
+  SEED_RTG.forEach(function(p){
+    const ref=db.collection('equipment').doc('rtg_'+p[0]);
+    batch.set(ref, { name:p[0], type:'RTG', letter:p[1], block:'1'+p[1], updatedBy:'system', updatedAt:Date.now() });
+  });
+  ['TP','SP'].forEach(function(t){
+    for(let i=1;i<=6;i++){
+      const name=t+pad2(i);
+      const ref=db.collection('equipment').doc(t.toLowerCase()+'_'+name.toLowerCase());
+      batch.set(ref, { name:name, type:t, letter:'', block:'', updatedBy:'system', updatedAt:Date.now() });
+    }
+  });
+  await batch.commit();
+}
+
+function init(){
+  const letterSel=$('#newRtgLetter');
+  letterSel.innerHTML=RTG_LETTERS.map(function(L){ return '<option value="'+L+'">Chữ '+L+'</option>'; }).join('');
+
+  seedIfEmpty().finally(function(){
+    db.collection('equipment').onSnapshot(function(snap){
+      equipAll={};
+      snap.forEach(function(doc){ equipAll[doc.id]=doc.data(); });
+      renderMap(); renderExtraZones(); renderTpTable();
+    }, function(err){ $('#headerSub').textContent='Lỗi kết nối Firestore: '+err.message; });
+
+    db.collection('accounts').onSnapshot(function(snap){
+      accounts=[]; snap.forEach(function(doc){ accounts.push(Object.assign({id:doc.id}, doc.data())); });
+      renderAccountSelect();
+    });
+
+    db.collection('events').orderBy('ts','desc').limit(20).onSnapshot(function(snap){
+      events=[]; snap.forEach(function(doc){ events.push(Object.assign({id:doc.id}, doc.data())); });
+      renderFeed();
+      if(!firstEventsLoad){
+        events.forEach(function(e){
+          if(!seenEventIds.has(e.id)){
+            if(e.dispatcher!==myName) toast(e.label+': '+e.fromBlock+' → '+e.toBlock+' (bởi '+e.dispatcher+')');
+            markSeen(e.id);
+          }
+        });
+      } else { events.forEach(function(e){ markSeen(e.id); }); firstEventsLoad=false; }
+    });
+
+    const saved=localStorage.getItem('rtg_my_account');
+    if(saved){
+      try{ const obj=JSON.parse(saved); selectAccount(obj.id,obj.name); return; }catch(e){}
+    }
+    $('#headerSub').textContent='Vui lòng chọn tài khoản để tiếp tục.';
+    $('#loginScreen').classList.remove('hidden');
+  });
+}
+</script>
+</body>
+</html>
